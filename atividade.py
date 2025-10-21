@@ -1,69 +1,102 @@
-from avltree import AvlTree
-from sklearn.datasets import load_iris
-import pandas as pd
-import numpy as np
-from scipy.stats import norm
+# avltree.py
 
-# Carregar o conjunto Iris
-iris = load_iris()
-df = pd.DataFrame(data=iris.data, columns=iris.feature_names)
-df['species'] = iris.target_names[iris.target]
-
-# Funcao para calcular indice composto
-def calculate_composite_index(row):
-    return np.mean(row[iris.feature_names])
-
-# Criar arvores AVL para cada especie
-avl_setosa = AvlTree()
-avl_versicolor = AvlTree()
-avl_virginica = AvlTree()
-
-# Dicionario para mapear especies as arvores
-species_trees = {
-    'setosa': avl_setosa,
-    'versicolor': avl_versicolor,
-    'virginica': avl_virginica
-}
-
-# Inserir dados nas arvores AVL
-for index, row in df.iterrows():
-    species = row['species']
-    composite_index = calculate_composite_index(row)
-    species_trees[species].insert(composite_index, index)
-
-# Calcular intervalos de confianca (95%)
-def calculate_confidence_interval(data):
-    mean = np.mean(data)
-    std = np.std(data, ddof=1)
-    ci_lower, ci_upper = norm.interval(0.95, loc=mean, scale=std/np.sqrt(len(data)))
-    return mean, ci_lower, ci_upper
-
-# Exemplo: Intervalo de confianca para comprimento da petala
-for species in df['species'].unique():
-    species_data = df[df['species'] == species]['petal length (cm)']
-    mean, ci_lower, ci_upper = calculate_confidence_interval(species_data)
-    print(f"{species}: Media = {mean:.2f}, Intervalo de Confianca (95%) = [{ci_lower:.2f}, {ci_upper:.2f}]")
-
-# Funcao de classificacao
-def classify_sample(sample):
-    composite_index = calculate_composite_index(sample)
-    min_diff = float('inf')
-    predicted_species = None
-    for species, tree in species_trees.items():
-        closest_node = tree.find_closest(composite_index)
-        if closest_node and abs(closest_node.key - composite_index) < min_diff:
-            min_diff = abs(closest_node.key - composite_index)
-            predicted_species = species
-    return predicted_species
-
-# Exemplo de uso
-sample = pd.Series([5.1, 3.5, 1.4, 0.2], index=iris.feature_names)
-predicted = classify_sample(sample)
-print(f"Amostra classificada como: {predicted}")
-
-# Relatorio da estrutura da arvore
-for species, tree in species_trees.items():
-    print(f"Arvore para {species}: Altura = {tree.height()}, Nos = {tree.size()}")
+class Node:
+    def __init__(self, key, value=None):
+        self.key = key
+        self.value = value
+        self.left = None
+        self.right = None
+        self.height = 1
 
 
-    
+class AvlTree:
+    def __init__(self):
+        self.root = None
+
+    # -------------------------
+    # Funções auxiliares
+    # -------------------------
+    def get_height(self, node):
+        return node.height if node else 0
+
+    def get_balance(self, node): # retorna fator de balanceamento (0, 1, -1)
+        return self.get_height(node.left) - self.get_height(node.right)
+
+    def rotate_right(self, y): # rotação simples à direita
+        x = y.left
+        T2 = x.right
+        x.right = y
+        y.left = T2
+        y.height = 1 + max(self.get_height(y.left), self.get_height(y.right))
+        x.height = 1 + max(self.get_height(x.left), self.get_height(x.right))
+        return x
+
+    def rotate_left(self, x): # rotação simples à esquerda
+        y = x.right
+        T2 = y.left
+        y.left = x
+        x.right = T2
+        x.height = 1 + max(self.get_height(x.left), self.get_height(x.right))
+        y.height = 1 + max(self.get_height(y.left), self.get_height(y.right))
+        return y
+
+    # -------------------------
+    # Inserção balanceada
+    # -------------------------
+    def insert(self, key, value=None):
+        self.root = self._insert(self.root, key, value)
+
+    def _insert(self, node, key, value): # função recursiva
+        if not node:
+            return Node(key, value)
+        elif key < node.key:
+            node.left = self._insert(node.left, key, value)
+        else:
+            node.right = self._insert(node.right, key, value)
+
+        # Atualizar altura
+        node.height = 1 + max(self.get_height(node.left), self.get_height(node.right))
+
+        # Balancear
+        balance = self.get_balance(node)
+        if balance > 1 and key < node.left.key:
+            return self.rotate_right(node)
+        if balance < -1 and key > node.right.key:
+            return self.rotate_left(node)
+        if balance > 1 and key > node.left.key:
+            node.left = self.rotate_left(node.left)
+            return self.rotate_right(node)
+        if balance < -1 and key < node.right.key:
+            node.right = self.rotate_right(node.right)
+            return self.rotate_left(node)
+
+        return node
+
+    # -------------------------
+    # Funções de busca e info
+    # -------------------------
+    def height(self):
+        return self.get_height(self.root)
+
+    def size(self):
+        def count_nodes(node):
+            if not node:
+                return 0
+            return 1 + count_nodes(node.left) + count_nodes(node.right)
+        return count_nodes(self.root)
+
+    # -------------------------
+    # Encontrar o nó mais próximo
+    # -------------------------
+    def find_closest(self, key):
+        return self._find_closest(self.root, key, None)
+
+    def _find_closest(self, node, key, closest):
+        if not node:
+            return closest
+        if closest is None or abs(node.key - key) < abs(closest.key - key):
+            closest = node
+        if key < node.key:
+            return self._find_closest(node.left, key, closest)
+        else:
+            return self._find_closest(node.right, key, closest)
