@@ -6,6 +6,7 @@ Para instalar todas as bibliotecas necessárias, execute o comando abaixo no ter
 
 ```bash
 pip install -r requirements.txt
+```
 
 ## O QUE É O IRIS?
 
