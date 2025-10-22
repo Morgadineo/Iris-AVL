@@ -9,16 +9,6 @@ from scipy import stats
 # Função para calcular média e intervalo de confiança para qualquer conjunto de dados
 # -----------------------------
 def calculate_confidence_interval(data, confidence=0.95):
-    """
-    Calcula média e intervalo de confiança para uma amostra.
-    
-    Parameters:
-        data (array-like): valores da amostra
-        confidence (float): nível de confiança (default=0.95)
-    
-    Returns:
-        mean, ci_lower, ci_upper
-    """
     mean = np.mean(data)
     std = np.std(data, ddof=1)
     ci_lower, ci_upper = stats.norm.interval(confidence, loc=mean, scale=std/np.sqrt(len(data)))
@@ -62,26 +52,19 @@ def classify_with_confidence_intervals(row, stats_summary):
     return "unknown"
 
 # -----------------------------
-# Criar árvores AVL e classificar
+# Criar árvores AVL e inserir amostras por espécie real
 # -----------------------------
 species_trees = {s: AvlTree() for s in df['species'].unique()}
-unknown_tree = AvlTree()
 
 for index, row in df.iterrows():
-    predicted_species = classify_with_confidence_intervals(row, species_stats)
-    composite_index = calculate_composite_index(row)
-    
-    if predicted_species in species_trees:
-        species_trees[predicted_species].insert(composite_index, index)
-    else:
-        unknown_tree.insert(composite_index, index)
+    species = row['species']  # espécie real da amostra
+    composite_index = calculate_composite_index(row)  # média dos 4 atributos
+    species_trees[species].insert(composite_index, index)  # insere na árvore correspondente
 
 # -----------------------------
-# Estrutura das Árvores AVL
+# Estrutura das Árvores
 # -----------------------------
 print("\n=== Estrutura das Árvores AVL ===")
 for species, tree in species_trees.items():
     print(f"{species}: Altura = {tree.height()}, Nós = {tree.size()}")
-print(f"unknown: Altura = {unknown_tree.height()}, Nós = {unknown_tree.size()}")
-
 print("\n Classificação e análise concluídas!")
