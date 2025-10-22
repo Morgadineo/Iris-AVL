@@ -52,14 +52,20 @@ def classify_with_confidence_intervals(row, stats_summary):
     return "unknown"
 
 # -----------------------------
-# Criar árvores AVL e inserir amostras por espécie real
+# Criar árvores AVL e classificar por media e IC
 # -----------------------------
 species_trees = {s: AvlTree() for s in df['species'].unique()}
+unknown_tree = AvlTree()
 
 for index, row in df.iterrows():
-    species = row['species']  # espécie real da amostra
-    composite_index = calculate_composite_index(row)  # média dos 4 atributos
-    species_trees[species].insert(composite_index, index)  # insere na árvore correspondente
+    predicted_species = classify_with_confidence_intervals(row, species_stats)
+    composite_index = calculate_composite_index(row)
+    
+    if predicted_species in species_trees:
+        species_trees[predicted_species].insert(composite_index, index)
+    else:
+        unknown_tree.insert(composite_index, index)
+
 
 # -----------------------------
 # Estrutura das Árvores
